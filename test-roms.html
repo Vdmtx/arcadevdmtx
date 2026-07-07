@@ -1,1 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Teste de ROMs - EmulatorJS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle { color: #888; margin-bottom: 15px; }
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info-box strong { color: #00d4ff; }
+        .controls {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 1em;
+        }
+        .roms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+        .rom-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        .rom-card:hover {
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.2);
+        }
+        .rom-system {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .system-neogeo { background: rgba(255, 107, 107, 0.3); color: #ff6b6b; }
+        .system-cps { background: rgba(78, 205, 196, 0.3); color: #4ecdc4; }
+        .system-midway { background: rgba(255, 230, 109, 0.3); color: #ffe66d; }
+        .system-atomiswave { background: rgba(162, 89, 255, 0.3); color: #a259ff; }
+        .rom-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        .rom-size {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 12px;
+        }
+        .test-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .test-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+        }
+        #emulator-container {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.98);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        #emulator-container.active { display: flex; }
+        #game-container {
+            width: 90%;
+            max-width: 1024px;
+            height: 80vh;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .close-btn {
+            position: absolute;
+            top: 20px; right: 20px;
+            padding: 10px 20px;
+            background: #ff4757;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            z-index: 10000;
+            font-weight: bold;
+        }
+        .close-btn:hover { background: #ff6b7a; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.5); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Teste de ROMs</h1>
+            <p class="subtitle">EmulatorJS - Multi-Sistema</p>
+            
+            <div class="info-box">
+                <strong>ℹ️ Sistemas Suportados:</strong><br>
+                • <strong>NeoGeo</strong> - King of Fighters, Metal Slug, Samurai Shodown<br>
+                • <strong>CPS</strong> - Street Fighter, Mega Man, Marvel vs Capcom<br>
+                • <strong>Midway</strong> - Mortal Kombat, NBA Jam<br>
+                • <strong>Atomiswave</strong> - The King of Fighters Neowave, Rumble Fish
+            </div>
+        </header>
 
+        <div class="controls">
+            <input type="text" class="search-box" id="search-rom" placeholder="🔍 Buscar ROM..." onkeyup="filterRoms()">
+        </div>
+
+        <div id="roms-container"></div>
+    </div>
+
+    <div id="emulator-container">
+        <button class="close-btn" onclick="closeEmulator()">✕ FECHAR</button>
+        <div id="game-container"></div>
+    </div>
+
+    <script>
+        /* ============================================================
+           CONFIGURAÇÃO
+           ============================================================ */
+        const REPO_OWNER = 'Vdmtx';
+        const REPO_NAME = 'retroarchonline';
+        const REPO_BRANCH = 'main';
+        const GITHUB_API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents`;
+        const CDN_BASE = `https://cdn.jsdelivr.net/gh/${REPO_OWNER}/${REPO_NAME}@${REPO_BRANCH}`;
+        const EMULATOR_DATA = `${CDN_BASE}/data`;
+
+        /* ============================================================
+           MAPEAMENTO DE SISTEMAS
+           ============================================================ */
+        const SYSTEMS = {
+            neogeo: {
+                core: 'fbneo',
+                bios: `${CDN_BASE}/bios/neogeo.zip`,
+                color: 'system-neogeo',
+                label: 'NeoGeo'
+            },
+            cps: {
+                core: 'fbneo',
+                bios: `${CDN_BASE}/bios/qsound.zip`,
+                color: 'system-cps',
+                label: 'CPS (1/2/3)'
+            },
+            midway: {
+                core: 'fbneo',
+                bios: null,
+                color: 'system-midway',
+                label: 'Midway'
+            },
+            atomiswave: {
+                core: 'naomi',
+                bios: `${CDN_BASE}/bios/awbios.zip`,
+                color: 'system-atomiswave',
+                label: 'Atomiswave'
+            }
+        };
+
+        let allRoms = [];
+
+        /* ============================================================
+           DETECÇÃO DE SISTEMA
+           ============================================================ */
+        function detectSystemFromFilename(filename) {
+            const name = filename.toLowerCase().replace('.zip', '');
+            
+            if (/^(kof|metal|slug|garou|samsh|rbff|aof|lastblad|matrim|savagere|fatfur)/.test(name)) return 'neogeo';
+            if (/^(sf|street|megaman|mvc|sfa|sfz|sfiii|hsf)/.test(name)) return 'cps';
+            if (/^(mk|mortal|umk)/.test(name)) return 'midway';
+            if (/^(atomis|aw|rumble)/.test(name)) return 'atomiswave';
+            
+            return 'neogeo';
+        }
+
+        /* ============================================================
+           INICIALIZAÇÃO
+           ============================================================ */
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadAllRoms();
+        });
+
+        /* ============================================================
+           CARREGAR ROMs
+           ============================================================ */
+        async function loadAllRoms() {
+            const container = document.getElementById('roms-container');
+            container.innerHTML = '<div style="text-align: center; color: #00d4ff; padding: 40px;">⏳ Carregando ROMs...</div>';
+            
+            // Carregar de subpastas
+            for (const [systemKey, systemCfg] of Object.entries(SYSTEMS)) {
+                try {
+                    const response = await fetch(`${GITHUB_API}/roms/${systemKey}`);
+                    if (response.ok) {
+                        const files = await response.json();
+                        const roms = files.filter(f => f.type === 'file' && f.name.endsWith('.zip'));
+                        
+                        roms.forEach(rom => {
+                            allRoms.push({
+                                system: systemKey,
+                                name: rom.name,
+                                size: rom.size,
+                                path: `roms/${systemKey}/${rom.name}`
+                            });
+                        });
+                        console.log(`✓ ${roms.length} ROMs de /roms/${systemKey}/`);
+                    }
+                } catch (e) {
+                    console.log(`✗ Pasta /roms/${systemKey}/ não encontrada`);
+                }
+            }
+            
+            // Carregar ROMs soltas na raiz
+            try {
+                const response = await fetch(`${GITHUB_API}/roms`);
+                if (response.ok) {
+                    const files = await response.json();
+                    const roms = files.filter(f => f.type === 'file' && f.name.endsWith('.zip'));
+                    
+                    roms.forEach(rom => {
+                        allRoms.push({
+                            system: detectSystemFromFilename(rom.name),
+                            name: rom.name,
+                            size: rom.size,
+                            path: `roms/${rom.name}`
+                        });
+                    });
+                    console.log(`✓ ${roms.length} ROMs da raiz /roms/`);
+                }
+            } catch (e) {
+                console.error('Erro ao carregar raiz:', e);
+            }
+            
+            displayRoms();
+            updateStats();
+        }
+
+        /* ============================================================
+           EXIBIR ROMs
+           ============================================================ */
+        function displayRoms(roms = allRoms) {
+            const container = document.getElementById('roms-container');
+            
+            if (roms.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #888; padding: 40px;">Nenhuma ROM encontrada</div>';
+                return;
+            }
+            
+            container.innerHTML = `<div class="roms-grid">${roms.map(rom => {
+                const cfg = SYSTEMS[rom.system];
+                return `
+                <div class="rom-card" data-name="${rom.name.toLowerCase()}">
+                    <div class="rom-system ${cfg.color}">${cfg.label}</div>
+                    <div class="rom-name">${rom.name.replace('.zip', '')}</div>
+                    <div class="rom-size">${formatFileSize(rom.size)}</div>
+                    <button class="test-btn" onclick="testRom('${rom.system}', '${rom.path}')">▶ TESTAR</button>
+                </div>
+            `}).join('')}</div>`;
+        }
+
+        /* ============================================================
+           ATUALIZAR ESTATÍSTICAS
+           ============================================================ */
+        function updateStats() {
+            const header = document.querySelector('header');
+            const existingStats = header.querySelector('.stats-grid');
+            if (existingStats) existingStats.remove();
+
+            const stats = document.createElement('div');
+            stats.className = 'stats-grid';
+            stats.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 15px;';
+            
+            let html = `
+                <div style="background: rgba(0,212,255,0.1); padding: 10px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 1.5em; color: #00d4ff; font-weight: bold;">${allRoms.length}</div>
+                    <div style="font-size: 0.8em; color: #888;">Total</div>
+                </div>`;
+            
+            for (const [key, cfg] of Object.entries(SYSTEMS)) {
+                const count = allRoms.filter(r => r.system === key).length;
+                if (count > 0) {
+                    const colorMap = {
+                        'system-cps': '#4ecdc4',
+                        'system-midway': '#ffe66d',
+                        'system-atomiswave': '#a259ff',
+                        'system-neogeo': '#ff6b6b'
+                    };
+                    html += `
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 1.5em; color: ${colorMap[cfg.color]}; font-weight: bold;">${count}</div>
+                            <div style="font-size: 0.8em; color: #888;">${cfg.label}</div>
+                        </div>`;
+                }
+            }
+            
+            stats.innerHTML = html;
+            header.appendChild(stats);
+        }
+
+        /* ============================================================
+           TESTAR ROM
+           ============================================================ */
+        function testRom(system, romPath) {
+            const cfg = SYSTEMS[system];
+            const romUrl = `${CDN_BASE}/${romPath}`;
+            
+            // Mostrar container do emulador
+            const container = document.getElementById('emulator-container');
+            container.classList.add('active');
+            
+            // Limpar container
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = '';
+            
+            // Configurar EmulatorJS
+            window.EJS_player = '#game-container';
+            window.EJS_core = cfg.core;
+            window.EJS_gameUrl = romUrl;
+            window.EJS_pathtodata = EMULATOR_DATA;
+            
+            if (cfg.bios) {
+                window.EJS_biosUrl = cfg.bios;
+            }
+            
+            // Carregar loader
+            const script = document.createElement('script');
+            script.src = `${EMULATOR_DATA}/loader.js`;
+            document.body.appendChild(script);
+        }
+
+        /* ============================================================
+           FECHAR EMULADOR
+           ============================================================ */
+        function closeEmulator() {
+            document.getElementById('emulator-container').classList.remove('active');
+            location.reload();
+        }
+
+        /* ============================================================
+           FILTRAR ROMs
+           ============================================================ */
+        function filterRoms() {
+            const search = document.getElementById('search-rom').value.toLowerCase();
+            const filtered = allRoms.filter(rom => rom.name.toLowerCase().includes(search));
+            displayRoms(filtered);
+        }
+
+        /* ============================================================
+           FORMATAR TAMANHO
+           ============================================================ */
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
