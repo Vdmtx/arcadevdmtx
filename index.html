@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Teste de ROMs - EmulatorJS</title>
+    <title> Teste de ROMs - EmulatorJS</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -67,8 +67,9 @@
             border-radius: 6px;
         }
         .core-selector label {
-            margin-right: 10px;
+            margin-right: 15px;
             cursor: pointer;
+            display: inline-block;
         }
         .core-selector input[type="radio"] {
             margin-right: 5px;
@@ -163,6 +164,20 @@
             font-weight: bold;
         }
         .close-btn:hover { background: #ff6b7a; }
+        .debug-log {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            max-width: 500px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8em;
+            color: #0f0;
+        }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
         ::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.5); border-radius: 4px; }
@@ -175,10 +190,10 @@
             <p class="subtitle">EmulatorJS - Multi-Sistema</p>
             
             <div class="warning-box">
-                <strong>⚠️ Importante sobre ROMs de Arcade:</strong><br>
-                • FBNeo: Requer ROMs exatas (MAME 0.239 ou FBNeo)<br>
-                • MAME 2003: Mais flexível, funciona com mais versões<br>
-                <strong>Se der erro no FBNeo, tente usar MAME 2003!</strong>
+                <strong>⚠️ Importante:</strong><br>
+                • FBNeo: Requer ROMs exatas (MAME 0.239)<br>
+                • MAME 2003 Plus: Mais compatível (recomendado)<br>
+                • Se der erro, tente outro core!
             </div>
             
             <div class="info-box">
@@ -194,14 +209,18 @@
             <input type="text" class="search-box" id="search-rom" placeholder="🔍 Buscar ROM..." onkeyup="filterRoms()">
             
             <div class="core-selector">
-                <strong> Core do Emulador:</strong><br>
+                <strong>🔧 Core do Emulador:</strong><br>
                 <label>
                     <input type="radio" name="core" value="fbneo" checked>
-                    FBNeo (Mais preciso, requer ROMs exatas)
+                    FBNeo
                 </label>
-                <label style="margin-left: 20px;">
-                    <input type="radio" name="core" value="mame2003">
-                    MAME 2003 (Mais compatível, recomendado)
+                <label>
+                    <input type="radio" name="core" value="mame2003_plus">
+                    MAME 2003 Plus (Recomendado)
+                </label>
+                <label>
+                    <input type="radio" name="core" value="auto">
+                     Auto-detect (tenta todos)
                 </label>
             </div>
         </div>
@@ -212,6 +231,7 @@
     <div id="emulator-container">
         <button class="close-btn" onclick="closeEmulator()">✕ FECHAR</button>
         <div id="game-container"></div>
+        <div class="debug-log" id="debug-log"></div>
     </div>
 
     <script>
@@ -223,6 +243,16 @@
         const GITHUB_API = `https://api.github.com/repos/${ORIGINAL_REPO}/contents`;
         const CDN_BASE = `https://cdn.jsdelivr.net/gh/${ORIGINAL_REPO}@${ORIGINAL_BRANCH}`;
         const EMULATOR_DATA = 'https://cdn.emulatorjs.org/stable/data/';
+
+        /* ============================================================
+           CORES DISPONÍVEIS POR SISTEMA
+           ============================================================ */
+        const CORES_POR_SISTEMA = {
+            neogeo: ['fbneo', 'mame2003_plus', 'mame2000'],
+            cps: ['fbneo', 'mame2003_plus', 'mame2000'],
+            midway: ['fbneo', 'mame2003_plus', 'mame2000'],
+            atomiswave: ['naomi', 'fbneo']
+        };
 
         /* ============================================================
            MAPEAMENTO DE SISTEMAS
@@ -251,6 +281,7 @@
         };
 
         let allRoms = [];
+        let currentRomTest = null;
 
         /* ============================================================
            DETECÇÃO DE SISTEMA
@@ -278,6 +309,17 @@
         }
 
         /* ============================================================
+           LOG DE DEBUG
+           ============================================================ */
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('debug-log');
+            const colors = { info: '#0f0', error: '#f00', warn: '#ff0' };
+            logEl.innerHTML += `<div style="color: ${colors[type] || '#0f0'}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(msg);
+        }
+
+        /* ============================================================
            INICIALIZAÇÃO
            ============================================================ */
         window.addEventListener('DOMContentLoaded', async () => {
@@ -291,7 +333,6 @@
             const container = document.getElementById('roms-container');
             container.innerHTML = '<div style="text-align: center; color: #00d4ff; padding: 40px;">⏳ Carregando ROMs...</div>';
             
-            // Carregar de subpastas
             const systemsList = ['neogeo', 'cps', 'midway', 'atomiswave'];
             for (const systemKey of systemsList) {
                 try {
@@ -308,14 +349,13 @@
                                 path: `roms/${systemKey}/${rom.name}`
                             });
                         });
-                        console.log(`✓ ${roms.length} ROMs de /roms/${systemKey}/`);
+                        log(`✓ ${roms.length} ROMs de /roms/${systemKey}/`);
                     }
                 } catch (e) {
-                    console.log(`✗ Pasta /roms/${systemKey}/ não encontrada`);
+                    log(`✗ Pasta /roms/${systemKey}/ não encontrada`, 'warn');
                 }
             }
             
-            // Carregar da raiz se não encontrou em subpastas
             if (allRoms.length === 0) {
                 try {
                     const response = await fetch(`${GITHUB_API}/roms`);
@@ -331,10 +371,10 @@
                                 path: `roms/${rom.name}`
                             });
                         });
-                        console.log(`✓ ${roms.length} ROMs da raiz`);
+                        log(`✓ ${roms.length} ROMs da raiz`);
                     }
                 } catch (e) {
-                    console.error('Erro:', e);
+                    log('Erro ao carregar raiz: ' + e.message, 'error');
                 }
             }
             
@@ -413,57 +453,133 @@
         }
 
         /* ============================================================
-           TESTAR ROM
+           CARREGAR EMULADOR COM CORE ESPECÍFICO
            ============================================================ */
-        function testRom(system, romPath) {
-            const core = getSelectedCore();
+        function loadEmulatorWithCore(core, romUrl, biosUrl, gameName) {
+            return new Promise((resolve, reject) => {
+                log(`Tentando core: ${core}...`);
+                
+                // Limpar container
+                const gameContainer = document.getElementById('game-container');
+                gameContainer.innerHTML = '';
+                
+                // Remover scripts anteriores do EmulatorJS
+                document.querySelectorAll('script[src*="emulatorjs"]').forEach(s => s.remove());
+                
+                // Configurar
+                window.EJS_player = '#game-container';
+                window.EJS_core = core;
+                window.EJS_gameUrl = romUrl;
+                window.EJS_pathtodata = EMULATOR_DATA;
+                window.EJS_gameName = gameName;
+                window.EJS_loadStateURL = null;
+                
+                if (biosUrl) {
+                    window.EJS_biosUrl = biosUrl;
+                }
+                
+                // Detectar sucesso/erro
+                let resolved = false;
+                
+                // Timeout de 15 segundos
+                const timeout = setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        reject(new Error(`Timeout: ${core} não iniciou em 15s`));
+                    }
+                }, 15000);
+                
+                // Observar o container para detectar carregamento
+                const observer = new MutationObserver((mutations) => {
+                    for (let mutation of mutations) {
+                        for (let node of mutation.addedNodes) {
+                            if (node.nodeType === 1) {
+                                // Verificar se há canvas ou iframe (emulador carregou)
+                                if (node.tagName === 'CANVAS' || node.tagName === 'IFRAME') {
+                                    if (!resolved) {
+                                        resolved = true;
+                                        clearTimeout(timeout);
+                                        observer.disconnect();
+                                        log(`✓ ${core} carregou com sucesso!`, 'info');
+                                        resolve();
+                                    }
+                                }
+                                // Verificar se há mensagem de erro
+                                if (node.textContent && (
+                                    node.textContent.includes('Error') || 
+                                    node.textContent.includes('missing') ||
+                                    node.textContent.includes('Falha')
+                                )) {
+                                    if (!resolved) {
+                                        resolved = true;
+                                        clearTimeout(timeout);
+                                        observer.disconnect();
+                                        reject(new Error(`${core}: ${node.textContent.substring(0, 100)}`));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                observer.observe(gameContainer, { childList: true, subtree: true });
+                
+                // Carregar loader
+                const script = document.createElement('script');
+                script.src = `${EMULATOR_DATA}/loader.js`;
+                script.onerror = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        observer.disconnect();
+                        reject(new Error('Falha ao carregar EmulatorJS'));
+                    }
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        /* ============================================================
+           TESTAR ROM - COM AUTO-DETECT
+           ============================================================ */
+        async function testRom(system, romPath) {
+            const selectedCore = getSelectedCore();
             const cfg = SYSTEMS[system];
             const romUrl = `${CDN_BASE}/${romPath}`;
-            
-            console.log('Iniciando:', {
-                sistema: system,
-                core: core,
-                rom: romUrl,
-                bios: cfg.bios
-            });
+            const gameName = romPath.replace('.zip', '').replace('roms/', '');
             
             const container = document.getElementById('emulator-container');
             container.classList.add('active');
             
-            const gameContainer = document.getElementById('game-container');
-            gameContainer.innerHTML = '';
+            const logEl = document.getElementById('debug-log');
+            logEl.innerHTML = '';
+            log(`Sistema: ${cfg.label}`);
+            log(`ROM: ${romPath}`);
+            log(`URL: ${romUrl}`);
+            if (cfg.bios) log(`BIOS: ${cfg.bios.split('/').pop()}`);
             
-            // Mapear cores para EmulatorJS
-            const coreMap = {
-                'fbneo': 'fbneo',
-                'mame2003': 'mame2003'
-            };
-            
-            // Configurar EmulatorJS
-            window.EJS_player = '#game-container';
-            window.EJS_core = coreMap[core];
-            window.EJS_gameUrl = romUrl;
-            window.EJS_pathtodata = EMULATOR_DATA;
-            window.EJS_gameName = romPath.replace('.zip', '');
-            
-            if (cfg.bios) {
-                window.EJS_biosUrl = cfg.bios;
+            // Determinar cores a testar
+            let coresToTry = [];
+            if (selectedCore === 'auto') {
+                coresToTry = CORES_POR_SISTEMA[system] || ['fbneo', 'mame2003_plus'];
+            } else {
+                coresToTry = [selectedCore];
             }
             
-            // Configurações adicionais
-            window.EJS_color = '#00d4ff';
-            window.EJS_loadStateURL = null;
-            window.EJS_terminate = () => {
-                console.log('Emulador fechado');
-            };
+            log(`Cores a testar: ${coresToTry.join(', ')}`);
             
-            // Carregar loader
-            const script = document.createElement('script');
-            script.src = `${EMULATOR_DATA}/loader.js`;
-            script.onerror = () => {
-                alert('Erro ao carregar EmulatorJS. Verifique sua conexão.');
-            };
-            document.body.appendChild(script);
+            // Tentar cada core
+            for (const core of coresToTry) {
+                try {
+                    await loadEmulatorWithCore(core, romUrl, cfg.bios, gameName);
+                    log(`✅ Sucesso com ${core}!`, 'info');
+                    return; // Sucesso!
+                } catch (error) {
+                    log(`✗ ${core} falhou: ${error.message}`, 'error');
+                }
+            }
+            
+            log(`❌ Nenhum core funcionou. Tente outra ROM.`, 'error');
         }
 
         /* ============================================================
