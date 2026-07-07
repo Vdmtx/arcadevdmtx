@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Teste de ROMs - EmulatorJS</title>
+    <title> Teste de ROMs - EmulatorJS</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -205,7 +205,7 @@
             <p class="subtitle">EmulatorJS - Multi-Sistema com Auto-Detect</p>
             
             <div class="warning-box">
-                <strong>⚠️ Importante:</strong><br>
+                <strong>️ Importante:</strong><br>
                 • FBNeo: Requer ROMs exatas (MAME 0.239)<br>
                 • MAME 2003 Plus: Mais compatível (recomendado)<br>
                 • <strong>Auto-detect tenta todos os cores até funcionar!</strong>
@@ -224,7 +224,7 @@
             <input type="text" class="search-box" id="search-rom" placeholder="🔍 Buscar ROM..." onkeyup="filterRoms()">
             
             <div class="core-selector">
-                <strong> Core do Emulador:</strong><br>
+                <strong>🔧 Core do Emulador:</strong><br>
                 <label>
                     <input type="radio" name="core" value="auto" checked>
                     🔄 Auto-detect (tenta todos)
@@ -510,7 +510,16 @@
         window.EJS_gameName = '${gameName}';
         window.EJS_loadStateURL = null;
         window.EJS_color = '#00d4ff';
+        window.EJS_startOnLoaded = true;
+        window.EJS_terminateOnExit = true;
         ${biosConfig}
+        
+        // Configurações para evitar menu do RetroArch
+        window.EJS_defaultControls = true;
+        window.EJS_emulator = {
+            startOnLoad: true,
+            autoStart: true
+        };
         
         // Notificar parent quando carregar
         window.addEventListener('load', () => {
